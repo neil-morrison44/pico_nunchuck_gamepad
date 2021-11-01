@@ -31,7 +31,6 @@ while True:
     else:
         dataA = 0x17 + (0x17 ^ data[4])
         dataB = 0x17 + (0x17 ^ data[5])
-        # print(bin(dataA), bin(dataB))
 
         if not (dataB & ~0b11111110):
             print("UP")
@@ -57,4 +56,3 @@ while True:
             print("SELECT")
         if not (dataA & ~0b11111011):
             print("START")
-    # time.sleep(0.05)
