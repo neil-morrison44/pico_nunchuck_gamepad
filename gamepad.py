@@ -3,8 +3,11 @@ import time
 
 GAMEPAD_ADDR = 0x52
 
+FREQ_MOD = 3
+
 # Create I2C object
-i2c = machine.I2C(0, scl=machine.Pin(17), sda=machine.Pin(16), freq=100000)
+i2c = machine.I2C(0, scl=machine.Pin(
+    17), sda=machine.Pin(16), freq=int(100000 * FREQ_MOD))
 
 # writeToNunchuck(0x40, 0x00)
 i2c.writeto_mem(GAMEPAD_ADDR, 0x40, b'\x00')
@@ -14,12 +17,12 @@ time.sleep(0.05)
 
 def reconnect():
     i2c.writeto_mem(GAMEPAD_ADDR, 0x40, b'\x00')
-    time.sleep(0.05)
+    time.sleep(0.05 / FREQ_MOD)
 
 
 while True:
     i2c.writeto(GAMEPAD_ADDR, b'\x00')
-    time.sleep(0.05)
+    time.sleep(0.05 / FREQ_MOD)
     data = i2c.readfrom(GAMEPAD_ADDR, 6)
     # print(data[1])
 
@@ -28,7 +31,7 @@ while True:
     else:
         dataA = 0x17 + (0x17 ^ data[4])
         dataB = 0x17 + (0x17 ^ data[5])
-        print(bin(dataA), bin(dataB))
+        # print(bin(dataA), bin(dataB))
 
         if not (dataB & ~0b11111110):
             print("UP")
