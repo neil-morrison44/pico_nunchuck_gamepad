@@ -1,54 +1,72 @@
-import machine
+import struct
 import time
 
-GAMEPAD_ADDR = 0x52
-FREQ_MOD = 3
 
-i2c = machine.I2C(0, scl=machine.Pin(
-    17), sda=machine.Pin(16), freq=int(100000 * FREQ_MOD))
+class Gamepad:
 
-i2c.writeto_mem(GAMEPAD_ADDR, 0x40, b'\x00')
-time.sleep(0.05)
+    def __init__(self, device):
+        self._gamepad_device = device
 
+        # Reuse this bytearray to send mouse reports.
+        # Typically controllers start numbering buttons at 1 rather than 0.
+        # report[0] buttons 1-8 (LSB is button 1)
+        # report[1] buttons 9-16
+        self._report = bytearray(2)
 
-def reconnect():
-    i2c.writeto_mem(GAMEPAD_ADDR, 0x40, b'\x00')
-    time.sleep(0.05 / FREQ_MOD)
+        # Remember the last report as well, so we can avoid sending
+        # duplicate reports.
+        self._last_report = bytearray(2)
 
+        # Store settings separately before putting into report. Saves code
+        # especially for buttons.
+        self._buttons_state = 0
 
-while True:
-    i2c.writeto(GAMEPAD_ADDR, b'\x00')
-    time.sleep(0.05 / FREQ_MOD)
-    data = i2c.readfrom(GAMEPAD_ADDR, 6)
-    # print(data[1])
+        # Send an initial report to test if HID device is ready.
+        # If not, wait a bit and try once more.
+        try:
+            self.reset_all()
+        except OSError:
+            time.sleep(1)
+            self.reset_all()
 
-    if (data[1] == 255):
-        reconnect()
-    else:
-        dataA = 0x17 + (0x17 ^ data[4])
-        dataB = 0x17 + (0x17 ^ data[5])
+    def press_buttons(self, buttons):
+        """Press and hold the given buttons."""
+        for button in buttons:
+            self._buttons_state |= 1 << self._validate_button_number(
+                button) - 1
+        # self._send()
 
-        if not (dataB & ~0b11111110):
-            print("UP")
-        if not (dataB & ~0b11111101):
-            print("LEFT")
-        if not (dataA & ~0b10111111):
-            print("DOWN")
-        if not (dataA & ~0b01111111):
-            print("RIGHT")
-        if not (dataA & ~0b11011111):
-            print("L")
-        if not (dataA & ~0b11111101):
-            print("R")
-        if not (dataB & ~0b11101111):
-            print("A")
-        if not (dataB & ~0b10111111):
-            print("B")
-        if not (dataB & ~0b11011111):
-            print("Y")
-        if not (dataB & ~0b11110111):
-            print("X")
-        if not (dataA & ~0b11101111):
-            print("SELECT")
-        if not (dataA & ~0b11111011):
-            print("START")
+    def release_buttons(self, buttons):
+        """Release the given buttons."""
+        for button in buttons:
+            self._buttons_state &= ~(
+                1 << self._validate_button_number(button) - 1)
+        # self._send()
+
+    def reset_all(self):
+        """Release all buttons and set joysticks to zero."""
+        self._buttons_state = 0
+        self.send(always=True)
+
+    def send(self, always=False):
+        """Send a report with all the existing settings.
+        If ``always`` is ``False`` (the default), send only if there have been changes.
+        """
+        struct.pack_into(
+            "<H",
+            self._report,
+            0,
+            self._buttons_state,
+        )
+
+        if always or self._last_report != self._report:
+            print(self._report)
+            self._gamepad_device.send_report(self._report)
+            # Remember what we sent, without allocating new storage.
+            self._last_report[:] = self._report
+
+    @staticmethod
+    def _validate_button_number(button):
+        if not 1 <= button <= 16:
+            raise ValueError("Button number must in range 1 to 16")
+        return button
