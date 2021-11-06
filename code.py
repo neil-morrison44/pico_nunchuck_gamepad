@@ -10,16 +10,9 @@ i2c = busio.I2C(board.GP17, board.GP16, frequency=10000)
 
 while not i2c.try_lock():
     pass
-print("I'm unlocked!")
-print([hex(dev.usage) for dev in usb_hid.devices if dev.usage is 0x5])
-
 gamepadDevice = [dev for dev in usb_hid.devices if dev.usage is 0x5][0]
 gp = Gamepad(gamepadDevice)
-time.sleep(0.01)
-
-print([hex(x) for x in i2c.scan()])
-
-time.sleep(0.01)
+time.sleep(0.02)
 
 # https://circuitpython.readthedocs.io/projects/hid/en/latest/examples.html#simple-gamepad
 

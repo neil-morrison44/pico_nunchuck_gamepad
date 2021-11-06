@@ -60,7 +60,7 @@ class Gamepad:
         )
 
         if always or self._last_report != self._report:
-            print(self._report)
+            # print([hex(byte) for byte in self._report])
             self._gamepad_device.send_report(self._report)
             # Remember what we sent, without allocating new storage.
             self._last_report[:] = self._report
